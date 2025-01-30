@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 from google import genai
-from database import store_message
+from database import store_message, get_session_messages
 import base64
 from typing import Dict, Any, List, Optional
 import logging
@@ -78,6 +78,29 @@ async def handle_dm_request(request: Dict[str, Any], authorization: str = None):
         if not all([query, session_id, user_id, request_id]):
             raise HTTPException(status_code=400, detail="Missing required fields")
 
+        # Check if this is the first message in the session
+        session_messages = await get_session_messages(session_id)
+        is_first_message = len(session_messages) == 0
+
+        # If this is the first message, send a welcome message
+        if is_first_message:
+            welcome_message = {
+                "type": "ai",
+                "content": """Greetings, brave adventurer! 🎲✨ I am TinyDM, your companion in the realms of imagination. How may I assist you today?
+
+I can help you with:
+🗡️ Creating combat encounters
+🏰 Generating vivid location descriptions
+👥 Crafting memorable NPCs
+🐉 Detailing fearsome monsters
+✨ Explaining spells and magic
+📖 Clarifying rules and mechanics
+🌍 Building entire worlds and campaigns
+
+Or perhaps you seek something else? Whatever your quest, I'm here to guide you through the infinite possibilities of D&D!"""
+            }
+            await store_message(session_id, welcome_message)
+
         # Validate files if present
         if files:
             if len(files) > 5:  # Max 5 files per message
@@ -96,23 +119,41 @@ async def handle_dm_request(request: Dict[str, Any], authorization: str = None):
         await store_message(session_id, user_message)
         logger.info("Stored user message")
 
-        # Generate response using Gemini
-        system_prompt = """You are TinyDM, a Dungeons & Dragons assistant. You help players and DMs with rules, 
-        character creation, story ideas, and general D&D knowledge. Be concise but helpful, and maintain the fantasy atmosphere 
-        in your responses. If you're not sure about something, say so rather than making up incorrect information."""
+        # Check if user is asking for help
+        help_keywords = ["help", "what can you do", "capabilities", "what do you do", "assist"]
+        is_help_request = any(keyword in query.lower() for keyword in help_keywords)
         
-        prompt = f"{system_prompt}\n\nUser: {query}\nAssistant:"
-        
-        try:
-            logger.info("Generating response with Gemini")
-            response = client.models.generate_content(model='gemini-2.0-flash-exp', contents=prompt)
-            if not response:
-                raise ValueError("Empty response from Gemini")
-            ai_response = response.text
-            logger.info("Generated AI response successfully")
-        except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
+        if is_help_request:
+            ai_response = """Greetings, brave adventurer! 🎲✨ I am TinyDM, your companion in the realms of imagination. How may I assist you today?
+
+I can help you with:
+🗡️ Creating combat encounters
+🏰 Generating vivid location descriptions
+👥 Crafting memorable NPCs
+🐉 Detailing fearsome monsters
+✨ Explaining spells and magic
+📖 Clarifying rules and mechanics
+🌍 Building entire worlds and campaigns
+
+Or perhaps you seek something else? Whatever your quest, I'm here to guide you through the infinite possibilities of D&D!"""
+        else:
+            # Generate response using Gemini
+            system_prompt = """You are TinyDM, a Dungeons & Dragons assistant. You help players and DMs with rules, 
+            character creation, story ideas, and general D&D knowledge. Be concise but helpful, and maintain the fantasy atmosphere 
+            in your responses. If you're not sure about something, say so rather than making up incorrect information."""
+            
+            prompt = f"{system_prompt}\n\nUser: {query}\nAssistant:"
+            
+            try:
+                logger.info("Generating response with Gemini")
+                response = client.models.generate_content(model='gemini-2.0-flash-exp', contents=prompt)
+                if not response:
+                    raise ValueError("Empty response from Gemini")
+                ai_response = response.text
+                logger.info("Generated AI response successfully")
+            except Exception as e:
+                logger.error(f"Error generating response: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
 
         # Store AI response
         ai_message = {
@@ -123,8 +164,7 @@ async def handle_dm_request(request: Dict[str, Any], authorization: str = None):
         logger.info("Stored AI response")
         
         return {
-            "success": True,
-            "message": ai_message
+            "success": True
         }
     
     except Exception as e:

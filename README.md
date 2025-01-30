@@ -123,9 +123,6 @@ TinyDM uses natural language processing to understand and respond to your needs.
 
 ## Live Agent Studio Submission Information
 
-**Your Name**: Michael Hightower
-**Your Email**: mhightower@successequip.com
-
 **Agent Name**: TinyDM
 
 **Agent Description**: 

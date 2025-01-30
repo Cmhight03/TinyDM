@@ -14,7 +14,7 @@ load_dotenv()
 # Initialize Supabase client with service role key for admin access
 supabase = create_client(
     os.getenv("SUPABASE_URL", ""),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")  # Use service role key instead of anon key
+    os.getenv("SUPABASE_KEY", "")  # Use the anon key
 )
 
 async def store_message(session_id: str, message: Dict[str, Any]) -> bool:
