@@ -16,29 +16,54 @@ A lightweight, chat-based Dungeon Master assistant that helps DMs create and man
 1. **Prerequisites**
    - Python 3.11+
    - PowerShell (Windows)
-   - Supabase account
-   - Google Cloud account with Gemini API access
+   - Supabase account (create one at https://supabase.com)
+   - Google Cloud account with Gemini API access (set up at https://cloud.google.com)
 
 2. **Installation**
    ```powershell
-   # Clone repository or download setup files
-   # Run setup script as Administrator
-   .\setup-tinyDM.ps1
+   # Clone the repository
+   git clone https://github.com/Cmhight03/TinyDM.git
+   cd TinyDM
+
+   # Create and activate virtual environment
+   python -m venv venv
+   .\venv\Scripts\Activate
+
+   # Install dependencies
+   pip install -r requirements.txt
    ```
 
 3. **Configuration**
-   Edit `.env` file with your credentials:
+   Create a `.env` file in the project root with your credentials:
    ```env
-   SUPABASE_URL=your-project.supabase.co
-   SUPABASE_KEY=your-anon-key
-   BEARER_TOKEN=your-bearer-token
+   # API Configuration
+   HOST=localhost
+   PORT=8001
+   BEARER_TOKEN=your_secure_token_here
+
+   # Gemini API
+   GEMINI_API_KEY=your_gemini_api_key_here
+
+   # Supabase Configuration
+   SUPABASE_URL=your_project.supabase.co
+   SUPABASE_KEY=your_anon_key
    ```
+
+   Required steps:
+   1. Create a Supabase project and copy your project URL and anon key
+   2. Set up a Google Cloud project and enable the Gemini API
+   3. Generate a secure bearer token for API authentication
 
 4. **Starting the Server**
    ```powershell
-   # Use the desktop shortcut or
-   .\start-tinyDM.ps1
+   # Ensure virtual environment is activated
+   .\venv\Scripts\Activate
+
+   # Start the FastAPI server
+   uvicorn main:app --host localhost --port 8001 --reload
    ```
+
+   The server will be available at `http://localhost:8001`
 
 ## User Guide
 
