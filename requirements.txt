@@ -1,0 +1,9 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+python-dotenv==1.0.0
+httpx>=0.24.0,<0.25.0
+python-multipart==0.0.6
+google-cloud-aiplatform==1.36.4
+google-genai==0.2.2
+websockets>=13.0,<15.0
+supabase==2.3.4

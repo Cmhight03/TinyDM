@@ -1,0 +1,216 @@
+Below is a comprehensive technical summary of all the key points and requirements for integrating an existing app or AI workflow with the Live Agent Studio platform. Use this as a checklist and reference to ensure your agent meets the necessary criteria.
+
+1. Overview of the Live Agent Studio
+Purpose: A platform allowing users to interact with different AI agents through a unified interface.
+Integration Goal: You expose a single endpoint (webhook) or provide a self-contained workflow (n8n, Voiceflow, or Docker-ized code) so that Live Agent Studio can:
+Send user queries (and optional file uploads) to your agent.
+Receive minimal success/failure responses from your agent.
+Display conversation history and any extra data in the unified frontend.
+2. Agent Requirements
+Input Parameters
+
+Must accept a POST request with JSON payload containing:
+{
+  "query": "User's input text",
+  "user_id": "Unique user identifier",
+  "request_id": "Unique request identifier",
+  "session_id": "Conversation session identifier",
+  "files": [
+    // Optional array of file objects (name, type, base64)
+  ]
+}
+query (string): user’s question or message.
+user_id (string): unique user identifier.
+request_id (string): unique request ID to avoid duplicates.
+session_id (string): unique conversation session ID.
+files (array, optional): base64-encoded file data if the user uploads files.
+Output Parameters
+
+Your agent must respond with a JSON object indicating success/failure:
+{
+  "success": true
+}
+success (boolean): true on successful processing; false otherwise.
+Conversation History Storage
+
+You must store all messages (both user and agent) in a SQL database (preferably Supabase).
+Voiceflow agents are the exception; they use a direct Dialog API and do not need manual DB storage in your code.
+API Limitations & Recommendations
+
+For hackathon usage, use smaller/faster LLMs costing < $0.1 per 1M tokens. Examples:
+Gemini 2.0 Flash
+Claude 3.5 Haiku
+Llama 3.3 70b
+GPT-4o-mini
+Only use low-cost or free external APIs (< $0.01 per agent execution) and with no major rate limit constraints.
+Security & Authorization
+
+If your agent needs user account access (e.g., Gmail, Slack), handle this OAuth or token flow on your side.
+Protect your webhook with an authorization token; Live Agent Studio will replace it with its own token at deployment time.
+Development Options
+
+You can build with:
+n8n (visual workflows, easy DB integration)
+Voiceflow (directly integrated with Live Agent Studio)
+Custom Code (Python, Node, etc.) in any framework
+Any Docker environment
+3. Database & Message Format
+3.1 Table Schema
+Create a messages table with the following structure (PostgreSQL-compatible):
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE messages (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    session_id TEXT NOT NULL,
+    message JSONB NOT NULL
+);
+
+CREATE INDEX idx_messages_session_id ON messages(session_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at);
+Note: If using Supabase, run:
+
+alter publication supabase_realtime add table messages;
+to enable realtime updates for testing.
+
+3.2 Required Fields
+session_id: Same as provided in the incoming JSON (session_id).
+message: A JSON object describing each message.
+3.3 Message JSON Structure
+User Messages:
+{
+  "type": "human",
+  "content": "User's input text"
+}
+Agent Messages:
+{
+  "type": "ai",
+  "content": "Agent's response text",
+  "data": {
+    // Optional additional metadata or payload
+  }
+}
+3.4 Inserting into the Table
+Always insert both the user message and agent response(s).
+Example (pseudocode):
+INSERT INTO messages (session_id, message)
+VALUES (<session_id>, <json_object>);
+4. Handling File Uploads
+Files come in as base64-encoded strings in the files array of the request payload.
+Example:
+"files": [
+  {
+    "name": "data.csv",
+    "type": "text/csv",
+    "base64": "Y29sdW1uMSxjb2x1bW4yDQp2YWx1ZTEsdmFsdWUy"
+  }
+]
+Limits:
+Max file size: 5MB
+Max files: 5 per message
+Validation: Check size, file type, decode base64, handle errors gracefully.
+5. Handling Extra Data (Frontend Custom Rendering)
+If your agent returns extra fields in message.data, you must provide a React component to properly display that data in the Live Agent Studio UI.
+Component Requirements:
+interface YourAgentProps {
+  data: any;  // The "data" field from your agent's response
+  handleSendMessage: (message: string, messageData?: string) => Promise<void>;
+}
+Use Tailwind CSS for styling.
+Use handleSendMessage if your component has interactive elements (buttons, etc.).
+Export as default from a file named appropriately (e.g., MyAgentComponent.tsx).
+6. Hosting & Deployment
+Live Agent Studio can host your agent for you, including paying for LLM usage.
+If you opt for this, send your agent code, workflow JSON, or Docker container.
+The platform manages:
+Authentication
+Rate limiting
+Infrastructure scaling
+Monitoring & updates
+7. Required Information for Submission
+When you’re ready to provide your agent to Live Agent Studio, include:
+
+Your Name: Individual or organization.
+Your Email: For communication.
+Agent Name: Descriptive name for your agent.
+Agent Description: Brief summary of what your agent does.
+Agent Code/Workflow: The entire codebase or relevant JSON (n8n, Voiceflow).
+Handling Extra Data (if applicable):
+If you have a custom data field in your messages, explain how it should be rendered.
+Provide the React component if needed.
+Credit URL: A URL to display in the interface for user attribution (GitHub, personal site, etc.).
+8. Example Agent Implementation Approaches
+8.1 Voiceflow
+Directly integrated with Live Agent Studio—no need to manage DB operations yourself.
+Steps:
+Create a project in Voiceflow.
+Build your conversation logic.
+The Studio automatically handles the messaging layer through the Voiceflow Dialog API.
+8.2 n8n
+Create a new Webhook node (POST).
+Store user’s message in the messages table (via a Supabase node).
+Use AI or other logic to generate a response.
+Insert the agent’s response into the messages table.
+Return { "success": true } in a Respond to Webhook node.
+If using n8n’s AI Agent node, just rename its default chat history table to messages.
+8.3 Custom Code (Python, Node, etc.)
+Create a POST endpoint (e.g., using FastAPI, Express, etc.).
+Validate the Authorization header.
+Parse the JSON to get query, user_id, request_id, session_id, files.
+Insert user message into messages.
+Generate AI response.
+Insert agent response into messages.
+Return { "success": true }.
+Handle exceptions with {"success": false} and a proper HTTP status code.
+9. Testing Your Agent
+Agent 0 Playground: Log in and connect your local agent to test real-time interactions.
+Local Testing:
+Use Postman/cURL to send a JSON payload.
+Verify DB inserts for user/agent messages.
+Check your response format is correct: {"success":true} or {"success":false}.
+Ensure the endpoint handles edge cases (missing fields, large files, etc.).
+Aim for responses under 60 seconds to avoid timeouts.
+10. Best Practices
+Security
+Validate inputs, sanitize queries.
+Protect your webhook with an authorization token.
+Performance
+Use efficient AI calls.
+Consider caching or short-circuit logic to return responses quickly.
+Scalability
+Structure your solution to handle concurrency.
+Error Handling
+Return meaningful errors.
+Use correct HTTP status codes (400, 401, 500, etc.).
+Logging
+Track requests/responses to help debugging.
+Documentation
+Keep the code base well documented for future maintenance.
+11. Credit and Attribution
+Provide a link (GitHub repo, personal site, etc.) so that Live Agent Studio can display a short attribution message to users.
+This fosters transparency and allows users to learn more about you.
+12. Frequently Asked Questions (FAQ)
+Who hosts the final agent?
+Live Agent Studio can host it; you submit your code/workflow, and they handle infrastructure and LLM costs.
+Do I need extra data fields?
+Not mandatory. If you do include them, specify how to render them in the frontend.
+How do I secure my endpoint?
+Use an authorization token. Live Agent Studio replaces it with their own in production.
+Can I use a non-Supabase database?
+Yes, any PostgreSQL-compatible DB is fine. Supabase is preferred for easy real-time integration.
+What if my agent is slow?
+Requests may time out after ~60 seconds. Optimize or break down responses as needed.
+Can I expose multiple endpoints?
+You can, but the key is the single POST webhook for user queries. Extra endpoints must not conflict with the main integration.
+Who to contact for help?
+Email colemedin@ottomator.ai for assistance.
+Final Checklist
+Endpoint: Accepts the required POST parameters (query, user_id, request_id, session_id, files).
+Response: Always returns {"success": true} or {"success": false}.
+DB Storage:
+Insert user messages (type: "human") and agent messages (type: "ai") into the messages table.
+Optional File Processing: Handle base64-encoded files in the files array.
+Optional Extra Data: If you return data in the agent message, provide a React component for the Studio’s frontend.
+Submission: Provide name, email, agent name, description, code/workflow, credit URL, and any custom UI components.
+Following these guidelines ensures your agent can be seamlessly integrated into the Live Agent Studio, letting users interact with your AI while the platform handles infrastructure, UI, and authentication details.
