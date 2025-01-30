@@ -158,7 +158,7 @@ TinyDM provides all information in chat-friendly format, with optional data stru
 }
 ```
 
-**Credit URL**: https://www.dumbdumbdice.com/dumb-dumbs-dragons
+**Credit URL**: https://github.com/Cmhight03/TinyDM with honorable mention for https://www.dumbdumbdice.com/dumb-dumbs-dragons 
 
 ## Contributing
 
