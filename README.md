@@ -1,4 +1,4 @@
-# TinyDM
+# TinyDM (Be kind - this is my "Hello World")   
 
 A lightweight, chat-based Dungeon Master assistant that helps DMs create and manage D&D 5E sessions through natural conversation. TinyDM integrates with Live Agent Studio to provide creative content generation, rules assistance, and improvisational support.
 
